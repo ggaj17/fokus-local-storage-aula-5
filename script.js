@@ -87,7 +87,7 @@ const contagemRegressiva = () => {
         zerar()
         return
     }
-    tempoDecorridoEmSegundos -= 1
+    tempoDecorridoEmSegundos -= 0.0166667
     mostrarTempo()
 }
 
@@ -113,7 +113,7 @@ function zerar() {
 }
 
 function mostrarTempo() {
-    const tempo = new Date(tempoDecorridoEmSegundos * 1000)
+    const tempo = new Date(tempoDecorridoEmSegundos * 60000)
     const tempoFormatado = tempo.toLocaleTimeString('pt-Br', {minute: '2-digit', second: '2-digit'})
     tempoNaTela.innerHTML = `${tempoFormatado}`
 }
