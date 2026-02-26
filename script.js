@@ -6,49 +6,47 @@ const banner = document.querySelector('.app__image')
 const titulo = document.querySelector('.app__title')
 const botoes = document.querySelectorAll('.app__card-button')
 const startPauseBt = document.querySelector('#start-pause')
-const musicaFocoInput = document.querySelector('#alternar-musica')
 const iniciarOuPausarBt = document.querySelector('#start-pause span')
 const iniciarOuPausarBtIcone = document.querySelector(".app__card-primary-butto-icon") 
 const tempoNaTela = document.querySelector('#timer')
-
-const musica = new Audio('/sons/luna-rise-part-one.mp3')
-const audioPlay = new Audio('/sons/play.wav');
-const audioPausa = new Audio('/sons/pause.mp3');
 const audioTempoFinalizado = new Audio('./sons/beep.mp3')
+const customAlert = document.getElementById('customAlert')
+const alertMessage = document.getElementById('alertMessage')
+const alertOkBtn = document.getElementById('alertOkBtn')
 
-let tempoDecorridoEmSegundos = 30
+let tempoDecorridoEmSegundos = 25 * 60
 let intervaloId = null
-
-musica.loop = true
-
-musicaFocoInput.addEventListener('change', () => {
-    if(musica.paused) {
-        musica.play()
-    } else {
-        musica.pause()
-    }
-})
+let dataInicio = null
+let tempoRestanteNoInicio = null // Guarda o tempo que tinha quando começou
 
 focoBt.addEventListener('click', () => {
-    tempoDecorridoEmSegundos = 30
+    zerar() // Para o timer se estiver rodando
+    tempoDecorridoEmSegundos = 25 * 60
     alterarContexto('foco')
     focoBt.classList.add('active')
+    mostrarTempo()
+    atualizarTituloPagina()
 })
 
 curtoBt.addEventListener('click', () => {
-    tempoDecorridoEmSegundos = 5
+    zerar()
+    tempoDecorridoEmSegundos = 5 * 60
     alterarContexto('descanso-curto')
     curtoBt.classList.add('active')
+    mostrarTempo()
+    atualizarTituloPagina()
 })
 
 longoBt.addEventListener('click', () => {
-    tempoDecorridoEmSegundos = 15
+    zerar()
+    tempoDecorridoEmSegundos = 15 * 60
     alterarContexto('descanso-longo')
     longoBt.classList.add('active')
+    mostrarTempo()
+    atualizarTituloPagina()
 })
 
 function alterarContexto(contexto) {
-    mostrarTempo()
     botoes.forEach(function (contexto){
         contexto.classList.remove('active')
     })
@@ -75,47 +73,95 @@ function alterarContexto(contexto) {
     }
 }
 
-const contagemRegressiva = () => {
-    if(tempoDecorridoEmSegundos <= 0){
-        audioTempoFinalizado.play()
-        alert('Tempo finalizado!')
-        const focoAtivo = html.getAttribute('data-contexto') == 'foco'
-        if (focoAtivo) {
-            const evento = new CustomEvent('FocoFinalizado')
-            document.dispatchEvent(evento)
-        }
-        zerar()
-        return
-    }
-    tempoDecorridoEmSegundos -= 0.0166667
-    mostrarTempo()
+function atualizarTituloPagina() {
+    const minutos = Math.floor(tempoDecorridoEmSegundos / 60)
+    const segundos = tempoDecorridoEmSegundos % 60
+    const tempoFormatado = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`
+    document.title = `(${tempoFormatado})`
 }
 
-startPauseBt.addEventListener('click', iniciarOuPausar)
+function atualizarTempoReal() {
+    if (!dataInicio) return
+    
+    const agora = new Date().getTime()
+    const diferencaEmSegundos = Math.floor((agora - dataInicio) / 1000)
+    let novoTempo = tempoRestanteNoInicio - diferencaEmSegundos
+    
+    if (novoTempo <= 0) {
+        audioTempoFinalizado.play()
 
-function iniciarOuPausar() {
+        mostrarAlerta('Tempo finalizado!', () => {
+            location.reload() 
+        })
+    
+    } else {
+        tempoDecorridoEmSegundos = novoTempo
+        mostrarTempo()
+        atualizarTituloPagina()
+    }
+}
+
+function iniciarTimer() {
+    dataInicio = new Date().getTime()
+    tempoRestanteNoInicio = tempoDecorridoEmSegundos
+    intervaloId = setInterval(() => {
+        atualizarTempoReal()
+    }, 100)
+}
+
+function pausarTimer() {
+    if (dataInicio) {
+        atualizarTempoReal()
+    }
+    clearInterval(intervaloId)
+    intervaloId = null
+    dataInicio = null
+    tempoRestanteNoInicio = null
+}
+
+startPauseBt.addEventListener('click', () => {
     if(intervaloId){
-        audioPausa.play()
-        zerar()
+        pausarTimer()
+        iniciarOuPausarBt.textContent = "Começar"
+        iniciarOuPausarBtIcone.setAttribute('src', `/imagens/play_arrow.png`)
         return
     }
-    audioPlay.play()
-    intervaloId = setInterval(contagemRegressiva, 1000)
+    iniciarTimer()
     iniciarOuPausarBt.textContent = "Pausar"
     iniciarOuPausarBtIcone.setAttribute('src', `/imagens/pause.png`)
-}
+})
 
 function zerar() {
-    clearInterval(intervaloId) 
+    pausarTimer()
     iniciarOuPausarBt.textContent = "Começar"
     iniciarOuPausarBtIcone.setAttribute('src', `/imagens/play_arrow.png`)
-    intervaloId = null
 }
 
 function mostrarTempo() {
-    const tempo = new Date(tempoDecorridoEmSegundos * 60000)
-    const tempoFormatado = tempo.toLocaleTimeString('pt-Br', {minute: '2-digit', second: '2-digit'})
-    tempoNaTela.innerHTML = `${tempoFormatado}`
+    const minutos = Math.floor(tempoDecorridoEmSegundos / 60)
+    const segundos = tempoDecorridoEmSegundos % 60
+    const tempoFormatado = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`
+    tempoNaTela.innerHTML = tempoFormatado
 }
 
+function mostrarAlerta(mensagem, callback) {
+    alertMessage.textContent = mensagem
+    customAlert.style.display = 'flex'
+    
+    alertOkBtn.replaceWith(alertOkBtn.cloneNode(true))
+    const novoBtn = document.getElementById('alertOkBtn')
+    
+    novoBtn.addEventListener('click', () => {
+        customAlert.style.display = 'none'
+        if (callback) callback()
+    })
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && intervaloId) {
+        atualizarTempoReal()
+    }
+})
+
 mostrarTempo()
+atualizarTituloPagina()
